@@ -1,6 +1,7 @@
 use chrono::Local;
 use easy_http_request::DefaultHttpRequest;
 use rand::Rng;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, BufReader};
@@ -12,6 +13,7 @@ use std::time::Duration;
 struct House {
     name: String,
     status: String,
+    price: String,
 }
 
 const MAIN_URI: &str = "https://www.realtor.com/realestateandhomes-detail/";
@@ -41,14 +43,28 @@ fn main() {
         let house: House = serde_json::from_str(&line).unwrap();
         let body: String = get_house(&house.name);
         let status = get_status(&body).to_string();
-        println!("{} is {}", house.name, status);
         if status == "UNKNOWN" {
             println!("Bot-blocked at {}", Local::now().format("%r"));
             return;
         }
+        let mut price = "".to_string();
+        let reggie = Regex::new(r#"price_display":"\$[0-9]{3},[0-9]{3}"#).unwrap();
+        match status.as_str() {
+            "active" | "pending" | "contingent" => {
+                if reggie.is_match(&body) {
+                    price = match reggie.find(&body) {
+                        Some(val) => val.as_str()[16..].to_string(),
+                        None => "".to_string(),
+                    };
+                }
+            }
+            _ => {}
+        }
+        println!("{} is {} for {}", house.name, status, price);
         let house_new = House {
             name: house.name,
             status: status,
+            price: price,
         };
         let line_new = serde_json::to_string(&house_new).unwrap();
         file_out.write_all(line_new.as_bytes()).unwrap();
