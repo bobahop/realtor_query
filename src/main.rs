@@ -109,11 +109,12 @@ fn get_status_tag(status: &str) -> &str {
 }
 
 fn get_status(body: &str) -> &str {
-    //need to check pending and contingent first, as they are still "active"
-    if body.contains(get_status_tag("pending")) {
-        "pending"
-    } else if body.contains(get_status_tag("contingent")) {
+    //need to check pending and contingent first, as they are still "active".
+    //check for contingent first, as I think all contingents are also pending.
+    if body.contains(get_status_tag("contingent")) {
         "contingent"
+    } else if body.contains(get_status_tag("pending")) {
+        "pending"
     } else if body.contains(get_status_tag("active")) {
         "active"
     } else if body.contains(get_status_tag("off market")) {
