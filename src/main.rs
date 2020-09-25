@@ -75,7 +75,7 @@ fn main() {
         file_out.write_all(line_new.as_bytes()).unwrap();
         file_out.write_all("\n".as_bytes()).unwrap();
         let mut rng = rand::thread_rng();
-        let wait_seconds = rng.gen_range(65, 125);
+        let wait_seconds = rng.gen_range(125, 185);
         search_count += 1;
         //was getting bot-blocked after 10 queries, so wait longer after 9 queries
         match search_count % 9 == 0 {
@@ -84,10 +84,10 @@ fn main() {
             }
             true => {
                 println!(
-                    "Waiting for 30 minutes to evade bot-block from {}",
+                    "Waiting for 15 minutes to evade bot-block from {}",
                     Local::now().format("%r")
                 );
-                thread::sleep(Duration::from_secs(1805));
+                thread::sleep(Duration::from_secs(905));
             }
         }
     }
@@ -97,6 +97,7 @@ fn main() {
 fn get_house(name: &str) -> String {
     let req = reqwest::blocking::Client::builder()
         .user_agent(USER_AGENT)
+        .cookie_store(true)
         .build()
         .unwrap();
     let mut resp = req.get(&(MAIN_URI.to_string() + name)).send().unwrap();
