@@ -1,5 +1,4 @@
 use chrono::Local;
-//use easy_http_request::DefaultHttpRequest;
 use rand::Rng;
 use regex::Regex;
 use reqwest;
@@ -40,30 +39,31 @@ fn main() {
     let path_in = Path::new(QUERY_SRC);
     let file_in = BufReader::new(File::open(path_in).unwrap());
 
+    let req = reqwest::blocking::Client::builder()
+        .user_agent(USER_AGENT)
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
     let mut search_count = 0;
+    let mut body_num: u32 = 0;
     for line in file_in.lines() {
+        body_num += 1;
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
-        let body: String = get_house(&house.name);
+        let body: String = get_house(&req, &house.name);
         let status = get_status(&body).to_string();
-        //UNKNOWN could now be just sold
-        // if status == "UNKNOWN" {
-        //     println!("Bot-blocked at {}", Local::now().format("%r"));
-        //     return;
-        // }
-        let mut price = "".to_string();
-        let reggie = Regex::new(r#"price">\$[0-9]{3},[0-9]{3}"#).unwrap();
-        match status.as_str() {
-            "active" | "pending" | "contingent" => {
-                if reggie.is_match(&body) {
-                    price = match reggie.find(&body) {
-                        Some(val) => val.as_str()[7..].to_string(),
-                        None => "".to_string(),
-                    };
-                }
+        //UNKNOWN could now be "just sold"
+        if status == "UNKNOWN" {
+            let mut reason = status;
+            if body.contains("<title>Service Unavailable</title>") {
+                reason = "Service Unavailable".to_string();
             }
-            _ => {}
+            println!("{} at {}", reason, Local::now().format("%r"));
+            print_unknown_body(&body, body_num);
+            return;
         }
+        let price = get_price(&body, &status);
         println!("{} is {} for {}", house.name, status, price);
         let house_new = House {
             name: house.name,
@@ -84,31 +84,21 @@ fn main() {
             }
             true => {
                 println!(
-                    "Waiting for 15 minutes to evade bot-block from {}",
+                    "Waiting for 30 minutes to evade bot-block from {}",
                     Local::now().format("%r")
                 );
-                thread::sleep(Duration::from_secs(905));
+                thread::sleep(Duration::from_secs(1805));
             }
         }
     }
     println!("{}", "Done!");
 }
 
-fn get_house(name: &str) -> String {
-    let req = reqwest::blocking::Client::builder()
-        .user_agent(USER_AGENT)
-        .cookie_store(true)
-        .build()
-        .unwrap();
+fn get_house(req: &reqwest::blocking::Client, name: &str) -> String {
     let mut resp = req.get(&(MAIN_URI.to_string() + name)).send().unwrap();
     let mut buf: Vec<u8> = vec![];
     resp.copy_to(&mut buf).unwrap();
     buf.iter().map(|c| *c as char).collect::<String>()
-    // let req = DefaultHttpRequest::get_from_url_str(MAIN_URI.to_string() + name)
-    //     .unwrap()
-    //     .send()
-    //     .unwrap();
-    // req.body.iter().map(|c| *c as char).collect::<String>()
 }
 
 fn get_status_tag(status: &str) -> &str {
@@ -118,10 +108,12 @@ fn get_status_tag(status: &str) -> &str {
         //"pending" => "<span id=\"label-pending\">",
         //"contingent" => "<span id=\"label-contingent\">",
         //"just sold" => "<span id=\"label-sold\"",
-        "active" => {
+        "active1" => {
             "<span class=\"jsx-3484526439 label label-dark-transparent\">For Sale - Active</span>"
         }
-        "pending" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
+        "active2" => "<span data-label=\"property-meta-active\">Active</span>",
+        "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
+        "pending2" => "<span id=\"label-pending\">Pending</span>",
         "off market" => "<span data-label=\"property-meta-status\">Off Market</span>",
         _ => "UNKNOWN",
     }
@@ -134,9 +126,13 @@ fn get_status(body: &str) -> &str {
     //     "contingent"
     // } else
     //Schema change. Just look for pending and active.
-    if body.contains(get_status_tag("pending")) {
+    if body.contains(get_status_tag("pending1")) {
         "pending"
-    } else if body.contains(get_status_tag("active")) {
+    } else if body.contains(get_status_tag("pending2")) {
+        "pending"
+    } else if body.contains(get_status_tag("active1")) {
+        "active"
+    } else if body.contains(get_status_tag("active2")) {
         "active"
     } else if body.contains(get_status_tag("off market")) {
         "off market"
@@ -144,7 +140,60 @@ fn get_status(body: &str) -> &str {
     //     "just sold"
     } else {
         //most likely have gotten the bot-block page, although could be a page schema change
-        //or could be just sold, don't know it's tag now
+        //or could be "just sold", since I don't know its tag now
         "UNKNOWN"
     }
+}
+
+fn print_unknown_body(body: &str, body_num: u32) {
+    let out_file = "C:/rust_projects/realtor_query/target/debug/";
+    let mut file_out = match OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(out_file.to_string() + &body_num.to_string() + ".html")
+    {
+        Ok(val) => val,
+        Err(e) => {
+            println!("{:?}", e.to_string());
+            return;
+        }
+    };
+    file_out.write_all(body.as_bytes()).unwrap();
+}
+
+fn get_price(body: &str, status: &str) -> String {
+    let mut price = "".to_string();
+    let reggie = Regex::new(r#"price">\$[0-9]{3},[0-9]{3}"#).unwrap();
+    match status {
+        "active" | "pending" | "contingent" => {
+            if reggie.is_match(&body) {
+                price = match reggie.find(&body) {
+                    Some(val) => val.as_str()[7..].to_string(),
+                    None => "".to_string(),
+                };
+            }
+        }
+        _ => {}
+    }
+    if price == "" {
+        //need to match with all its line breaks and spaces
+        // <span itemprop="price" content="185000">
+        //                         $185,000
+        //                       </span>
+        let reggie =
+            Regex::new(r#"<span itemprop="price" content="185000">\s+\$[0-9]{3},[0-9]{3}"#)
+                .unwrap();
+        if reggie.is_match(&body) {
+            price = match reggie.find(body) {
+                Some(val) => val.as_str()[7..].to_string(),
+                None => "".to_string(),
+            };
+            let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
+            price = match reggie.find(body) {
+                Some(val) => val.as_str().to_string(),
+                None => "".to_string(),
+            };
+        }
+    }
+    price
 }
