@@ -162,18 +162,16 @@ fn print_unknown_body(body: &str, body_num: u32) {
 }
 
 fn get_price(body: &str, status: &str) -> String {
+    if status != "active" && status != "pending" && status != "contingent" {
+        return "".to_string();
+    }
     let mut price = "".to_string();
     let reggie = Regex::new(r#"price">\$[0-9]{3},[0-9]{3}"#).unwrap();
-    match status {
-        "active" | "pending" | "contingent" => {
-            if reggie.is_match(&body) {
-                price = match reggie.find(&body) {
-                    Some(val) => val.as_str()[7..].to_string(),
-                    None => "".to_string(),
-                };
-            }
-        }
-        _ => {}
+    if reggie.is_match(&body) {
+        price = match reggie.find(&body) {
+            Some(val) => val.as_str()[7..].to_string(),
+            None => "".to_string(),
+        };
     }
     if price == "" {
         //need to match with all its line breaks and spaces
@@ -181,7 +179,7 @@ fn get_price(body: &str, status: &str) -> String {
         //                         $185,000
         //                       </span>
         let reggie =
-            Regex::new(r#"<span itemprop="price" content="185000">\s+\$[0-9]{3},[0-9]{3}"#)
+            Regex::new(r#"<span itemprop="price" content="[0-9]{6}]">\s+\$[0-9]{3},[0-9]{3}"#)
                 .unwrap();
         if reggie.is_match(&body) {
             price = match reggie.find(body) {
