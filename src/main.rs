@@ -179,7 +179,7 @@ fn get_price(body: &str, status: &str) -> String {
         //                         $185,000
         //                       </span>
         let reggie =
-            Regex::new(r#"<span itemprop="price" content="[0-9]{6}]">\s+\$[0-9]{3},[0-9]{3}"#)
+            Regex::new(r#"<span itemprop="price" content="[0-9]{6}">\s+\$[0-9]{3},[0-9]{3}"#)
                 .unwrap();
         if reggie.is_match(&body) {
             price = match reggie.find(body) {
