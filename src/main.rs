@@ -48,7 +48,6 @@ fn main() {
     let mut search_count = 0;
     let mut body_num: u32 = 0;
     for line in file_in.lines() {
-        body_num += 1;
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
         let body: String = get_house(&req, &house.name);
@@ -60,6 +59,7 @@ fn main() {
                 reason = "Service Unavailable".to_string();
             }
             println!("{} at {}", reason, Local::now().format("%r"));
+            body_num += 1;
             print_unknown_body(&body, body_num);
             return;
         }
@@ -162,18 +162,18 @@ fn print_unknown_body(body: &str, body_num: u32) {
 }
 
 fn get_price(body: &str, status: &str) -> String {
+    let mut _price = "".to_string();
     if status != "active" && status != "pending" && status != "contingent" {
-        return "".to_string();
+        return _price;
     }
-    let mut price = "".to_string();
     let reggie = Regex::new(r#"price">\$[0-9]{3},[0-9]{3}"#).unwrap();
     if reggie.is_match(&body) {
-        price = match reggie.find(&body) {
+        _price = match reggie.find(&body) {
             Some(val) => val.as_str()[7..].to_string(),
             None => "".to_string(),
         };
     }
-    if price == "" {
+    if _price == "" {
         //need to match with all its line breaks and spaces
         // <span itemprop="price" content="185000">
         //                         $185,000
@@ -182,16 +182,16 @@ fn get_price(body: &str, status: &str) -> String {
             Regex::new(r#"<span itemprop="price" content="[0-9]{6}">\s+\$[0-9]{3},[0-9]{3}"#)
                 .unwrap();
         if reggie.is_match(&body) {
-            price = match reggie.find(body) {
-                Some(val) => val.as_str()[7..].to_string(),
+            _price = match reggie.find(body) {
+                Some(val) => val.as_str()[40..].to_string(),
                 None => "".to_string(),
             };
             let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
-            price = match reggie.find(body) {
+            _price = match reggie.find(body) {
                 Some(val) => val.as_str().to_string(),
                 None => "".to_string(),
             };
         }
     }
-    price
+    _price
 }
