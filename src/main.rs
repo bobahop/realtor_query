@@ -54,10 +54,7 @@ fn main() {
         let status = get_status(&body).to_string();
         //UNKNOWN could now be "just sold"
         if status == "UNKNOWN" {
-            let mut reason = status;
-            if body.contains("<title>Service Unavailable</title>") {
-                reason = "Service Unavailable".to_string();
-            }
+            let reason = get_unknown_reason(&body);
             println!("{} at {}", reason, Local::now().format("%r"));
             body_num += 1;
             print_unknown_body(&body, body_num);
@@ -194,4 +191,14 @@ fn get_price(body: &str, status: &str) -> String {
         }
     }
     _price
+}
+
+fn get_unknown_reason(body: &str) -> String {
+    if body.contains("<title>Pardon Our Interruption</title>") {
+        "Bot-Blocked".to_string()
+    } else if body.contains("<title>Service Unavailable</title>") {
+        "Service Unavailable".to_string()
+    } else {
+        "UNKNOWN".to_string()
+    }
 }
