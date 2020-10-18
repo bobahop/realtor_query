@@ -111,7 +111,10 @@ fn get_status_tag(status: &str) -> &str {
         "active2" => "<span data-label=\"property-meta-active\">Active</span>",
         "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
         "pending2" => "<span id=\"label-pending\">Pending</span>",
-        "off market" => "<span data-label=\"property-meta-status\">Off Market</span>",
+        "off market1" => "<span data-label=\"property-meta-status\">Off Market</span>",
+        "off market2" => {
+            "<span id=\"pdp-meta-hero-tag\" data-label=\"property-meta-status\">Off Market</span>"
+        }
         _ => "UNKNOWN",
     }
 }
@@ -131,7 +134,9 @@ fn get_status(body: &str) -> &str {
         "active"
     } else if body.contains(get_status_tag("active2")) {
         "active"
-    } else if body.contains(get_status_tag("off market")) {
+    } else if body.contains(get_status_tag("off market1")) {
+        "off market"
+    } else if body.contains(get_status_tag("off market2")) {
         "off market"
     // } else if body.contains(get_status_tag("just sold")) {
     //     "just sold"
@@ -199,6 +204,6 @@ fn get_unknown_reason(body: &str) -> String {
     } else if body.contains("<title>Service Unavailable</title>") {
         "Service Unavailable".to_string()
     } else {
-        "UNKNOWN".to_string()
+        "Possible schema change".to_string()
     }
 }
