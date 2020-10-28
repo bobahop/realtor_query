@@ -111,6 +111,7 @@ fn get_status_tag(status: &str) -> &str {
         "active2" => "<span data-label=\"property-meta-active\">Active</span>",
         "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
         "pending2" => "<span id=\"label-pending\">Pending</span>",
+        "just sold" => "<span id=\"label-sold\">",
         "off market1" => "<span data-label=\"property-meta-status\">Off Market</span>",
         "off market2" => {
             "<span id=\"pdp-meta-hero-tag\" data-label=\"property-meta-status\">Off Market</span>"
@@ -134,15 +135,14 @@ fn get_status(body: &str) -> &str {
         "active"
     } else if body.contains(get_status_tag("active2")) {
         "active"
+    } else if body.contains(get_status_tag("just sold")) {
+        "just sold"
     } else if body.contains(get_status_tag("off market1")) {
         "off market"
     } else if body.contains(get_status_tag("off market2")) {
         "off market"
-    // } else if body.contains(get_status_tag("just sold")) {
-    //     "just sold"
     } else {
         //most likely have gotten the bot-block page, although could be a page schema change
-        //or could be "just sold", since I don't know its tag now
         "UNKNOWN"
     }
 }
