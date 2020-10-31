@@ -45,14 +45,15 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut search_count = 0;
     let mut body_num: u32 = 0;
-    for line in file_in.lines() {
+    let lines: Vec<_> = file_in.lines().collect();
+    let line_count = lines.len();
+    for (line_index, line) in lines.into_iter().enumerate() {
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
         let body: String = get_house(&req, &house.name);
         let status = get_status(&body).to_string();
-        //UNKNOWN could now be "just sold"
+        //UNKNOWN
         if status == "UNKNOWN" {
             let reason = get_unknown_reason(&body);
             println!("{} at {}", reason, Local::now().format("%r"));
@@ -62,6 +63,7 @@ fn main() {
         }
         let price = get_price(&body, &status);
         println!("{} is {} for {}", house.name, status, price);
+
         let house_new = House {
             name: house.name,
             status: status,
@@ -71,11 +73,17 @@ fn main() {
         let line_new = serde_json::to_string(&house_new).unwrap();
         file_out.write_all(line_new.as_bytes()).unwrap();
         file_out.write_all("\n".as_bytes()).unwrap();
+
+        //don't wait if we're done
+        let line_num = line_index + 1;
+        if line_num == line_count {
+            break;
+        }
+
         let mut rng = rand::thread_rng();
         let wait_seconds = rng.gen_range(125, 185);
-        search_count += 1;
         //was getting bot-blocked after 10 queries, so wait longer after 9 queries
-        match search_count % 9 == 0 {
+        match line_num % 9 == 0 {
             false => {
                 thread::sleep(Duration::from_secs(wait_seconds));
             }
