@@ -196,11 +196,13 @@ fn get_price(body: &str, status: &str) -> String {
                 Some(val) => val.as_str()[40..].to_string(),
                 None => "".to_string(),
             };
-            let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
-            _price = match reggie.find(body) {
-                Some(val) => val.as_str().to_string(),
-                None => "".to_string(),
-            };
+            if !_price.is_empty() {
+                let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
+                _price = match reggie.find(&_price) {
+                    Some(val) => val.as_str().to_string(),
+                    None => "".to_string(),
+                };
+            }
         }
     }
     _price
