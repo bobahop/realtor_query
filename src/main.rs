@@ -3,6 +3,8 @@ use rand::Rng;
 use regex::Regex;
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, BufReader};
 use std::path::Path;
@@ -16,6 +18,18 @@ struct House {
     price: String,
     query: String,
 }
+
+#[derive(Debug)]
+struct BobError {
+    text: String,
+}
+impl fmt::Display for BobError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.text)
+    }
+}
+
+impl Error for BobError {}
 
 const MAIN_URI: &str = "https://www.realtor.com/realestateandhomes-detail/";
 const QUERY_SRC: &str = "C:/rust_projects/realtor_query/target/debug/query_src.txt";
@@ -51,7 +65,14 @@ fn main() {
     for (line_index, line) in lines.into_iter().enumerate() {
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
-        let body: String = get_house(&req, &house.name);
+        let body = get_body(&req, &house.name);
+        match body {
+            Err(_) => {
+                return;
+            }
+            _ => {}
+        }
+        let body = body.unwrap();
         let status = get_status(&body).to_string();
         //UNKNOWN
         if status == "UNKNOWN" {
@@ -99,8 +120,49 @@ fn main() {
     println!("{}", "Done!");
 }
 
-fn get_house(req: &reqwest::blocking::Client, name: &str) -> String {
-    let mut resp = req.get(&(MAIN_URI.to_string() + name)).send().unwrap();
+fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String, BobError> {
+    let mut body: String = get_house(&req, house_name);
+    match body.as_str() {
+        "Error" => {
+            return Err(BobError {
+                text: "Error".to_string(),
+            });
+        }
+        "Timeout" => {
+            //give it one more try after a couple of minutes
+            thread::sleep(Duration::from_secs(125));
+            body = get_house(&req, house_name);
+            match body.as_str() {
+                "Error" | "Timeout" => {
+                    return Err(BobError {
+                        text: "Error".to_string(),
+                    })
+                }
+                _ => {}
+            };
+        }
+        _ => {}
+    };
+    Ok(body)
+}
+fn get_house(req: &reqwest::blocking::Client, house_name: &str) -> String {
+    let mut resp = match req.get(&(MAIN_URI.to_string() + house_name)).send() {
+        Ok(success_val) => success_val,
+        Err(fail_error) => {
+            let fail_error = fail_error as reqwest::Error;
+            if fail_error.is_timeout() {
+                println!("Timeout at {}", Local::now().format("%r"));
+                return "Timeout".to_string();
+            } else {
+                println!(
+                    "{} at {}",
+                    fail_error.to_string(),
+                    Local::now().format("%r")
+                );
+            }
+            return "Error".to_string();
+        }
+    };
     let mut buf: Vec<u8> = vec![];
     resp.copy_to(&mut buf).unwrap();
     buf.iter().map(|c| *c as char).collect::<String>()
