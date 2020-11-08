@@ -129,8 +129,8 @@ fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String,
             });
         }
         "Timeout" => {
-            //give it one more try after a couple of minutes
-            thread::sleep(Duration::from_secs(125));
+            //give it one more try after five minutes
+            thread::sleep(Duration::from_secs(305));
             body = get_house(&req, house_name);
             match body.as_str() {
                 "Error" | "Timeout" => {
