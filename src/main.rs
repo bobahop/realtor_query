@@ -101,12 +101,10 @@ fn main() {
             break;
         }
 
-        let mut rng = rand::thread_rng();
-        let wait_seconds = rng.gen_range(125, 185);
         //was getting bot-blocked after 10 queries, so wait longer after 9 queries
         match line_num % 9 == 0 {
             false => {
-                thread::sleep(Duration::from_secs(wait_seconds));
+                thread::sleep(Duration::from_secs(rand::thread_rng().gen_range(125, 185)));
             }
             true => {
                 println!(
