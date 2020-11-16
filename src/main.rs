@@ -108,8 +108,9 @@ fn main() {
             }
             true => {
                 println!(
-                    "Waiting for 30 minutes to evade bot-block from {}",
-                    Local::now().format("%r")
+                    "Waiting for 30 minutes to evade bot-block from {} with {} left",
+                    Local::now().format("%r"),
+                    line_count - line_num
                 );
                 thread::sleep(Duration::from_secs(1805));
             }
