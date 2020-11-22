@@ -37,7 +37,6 @@ const QUERY_RESULTS: &str = "C:/rust_projects/realtor_query/target/debug/query_r
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36";
 
 fn main() {
-    println!("Starting at {}", Local::now().format("%r"));
     let mut file_out = match OpenOptions::new()
         .append(true)
         .create(true)
@@ -62,6 +61,11 @@ fn main() {
     let mut body_num: u32 = 0;
     let lines: Vec<_> = file_in.lines().collect();
     let line_count = lines.len();
+    println!(
+        "Starting at {} with {} to look up...",
+        Local::now().format("%r"),
+        line_count
+    );
     for (line_index, line) in lines.into_iter().enumerate() {
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
@@ -108,7 +112,7 @@ fn main() {
             }
             true => {
                 println!(
-                    "Waiting for 30 minutes to evade bot-block from {} with {} left",
+                    "Waiting for 30 minutes to evade bot-block from {} with {} left...",
                     Local::now().format("%r"),
                     line_count - line_num
                 );
@@ -128,6 +132,7 @@ fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String,
             });
         }
         "Timeout" => {
+            println!("Timeout at {}. Waiting for 5...", Local::now().format("%r"));
             //give it one more try after five minutes
             thread::sleep(Duration::from_secs(305));
             body = get_house(&req, house_name);
@@ -150,7 +155,6 @@ fn get_house(req: &reqwest::blocking::Client, house_name: &str) -> String {
         Err(fail_error) => {
             let fail_error = fail_error as reqwest::Error;
             if fail_error.is_timeout() {
-                println!("Timeout at {}", Local::now().format("%r"));
                 return "Timeout".to_string();
             } else {
                 println!(
