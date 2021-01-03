@@ -178,6 +178,7 @@ fn get_status_tag(status: &str) -> &str {
         //"pending" => "<span id=\"label-pending\">",
         //"contingent" => "<span id=\"label-contingent\">",
         //"just sold" => "<span id=\"label-sold\"",
+        "contingent" => "<span class=\"jsx-3484526439 label label-red\">Contingent</span>",
         "active1" => {
             "<span class=\"jsx-3484526439 label label-dark-transparent\">For Sale - Active</span>"
         }
@@ -196,11 +197,9 @@ fn get_status_tag(status: &str) -> &str {
 fn get_status(body: &str) -> &str {
     //need to check pending and contingent first, as they are still "active".
     //check for contingent first, as I think all contingents are also pending.
-    // if body.contains(get_status_tag("contingent")) {
-    //     "contingent"
-    // } else
-    //Schema change. Just look for pending and active.
-    if body.contains(get_status_tag("pending1")) {
+    if body.contains(get_status_tag("contingent")) {
+        "contingent"
+    } else if body.contains(get_status_tag("pending1")) {
         "pending"
     } else if body.contains(get_status_tag("pending2")) {
         "pending"
@@ -241,7 +240,7 @@ fn get_price(body: &str, status: &str) -> String {
     if status != "active" && status != "pending" && status != "contingent" {
         return _price;
     }
-    let reggie = Regex::new(r#"price">\$[0-9]{3},[0-9]{3}"#).unwrap();
+    let reggie = Regex::new(r#"price">\$[0-9]{2,3},[0-9]{3}"#).unwrap();
     if reggie.is_match(&body) {
         _price = match reggie.find(&body) {
             Some(val) => val.as_str()[7..].to_string(),
