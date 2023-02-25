@@ -32,8 +32,9 @@ impl fmt::Display for BobError {
 impl Error for BobError {}
 
 const MAIN_URI: &str = "https://www.realtor.com/realestateandhomes-detail/";
-const QUERY_SRC: &str = "C:/rust_projects/realtor_query/target/debug/query_src.txt";
-const QUERY_RESULTS: &str = "C:/rust_projects/realtor_query/target/debug/query_results.txt";
+const QUERY_SRC: &str = "D:/rust_projects/realtor_query/target/debug/query_src.txt";
+const QUERY_RESULTS: &str = "D:/rust_projects/realtor_query/target/debug/query_results.txt";
+const UNKNOWN_BODY_LOC: &str = "D:/rust_projects/realtor_query/target/debug/";
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36";
 
 fn main() {
@@ -69,7 +70,7 @@ fn main() {
     for (line_index, line) in lines.into_iter().enumerate() {
         let line = line.unwrap();
         let house: House = serde_json::from_str(&line).unwrap();
-        let body = get_body(&req, &house.name);
+        let body = get_body(&req, &house.query);
         match body {
             Err(_) => {
                 return;
@@ -81,7 +82,12 @@ fn main() {
         //UNKNOWN
         if status == "UNKNOWN" {
             let reason = get_unknown_reason(&body);
-            println!("{} at {}", reason, Local::now().format("%r"));
+            println!(
+                "{} for {} at {}",
+                reason,
+                house.name,
+                Local::now().format("%r")
+            );
             body_num += 1;
             print_unknown_body(&body, body_num);
             return;
@@ -123,8 +129,8 @@ fn main() {
     println!("{}", "Done!");
 }
 
-fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String, BobError> {
-    let mut body: String = get_house(&req, house_name);
+fn get_body(req: &reqwest::blocking::Client, house_search_val: &str) -> Result<String, BobError> {
+    let mut body: String = get_house(&req, house_search_val);
     match body.as_str() {
         "Error" => {
             return Err(BobError {
@@ -135,7 +141,7 @@ fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String,
             println!("Timeout at {}. Waiting for 5...", Local::now().format("%r"));
             //give it one more try after five minutes
             thread::sleep(Duration::from_secs(305));
-            body = get_house(&req, house_name);
+            body = get_house(&req, house_search_val);
             match body.as_str() {
                 "Error" | "Timeout" => {
                     return Err(BobError {
@@ -149,8 +155,8 @@ fn get_body(req: &reqwest::blocking::Client, house_name: &str) -> Result<String,
     };
     Ok(body)
 }
-fn get_house(req: &reqwest::blocking::Client, house_name: &str) -> String {
-    let mut resp = match req.get(&(MAIN_URI.to_string() + house_name)).send() {
+fn get_house(req: &reqwest::blocking::Client, house_search_val: &str) -> String {
+    let mut resp = match req.get(&(MAIN_URI.to_string() + house_search_val)).send() {
         Ok(success_val) => success_val,
         Err(fail_error) => {
             let fail_error = fail_error as reqwest::Error;
@@ -175,21 +181,26 @@ fn get_status_tag(status: &str) -> &str {
     match status {
         //old schema
         //"active" => "\"listingStatus\":\"active\"",
+        // "active1" => {
+        //     "<span class=\"jsx-3484526439 label label-dark-transparent\">For Sale - Active</span>"
+        // }
+        // "active2" => "<span data-label=\"property-meta-active\">Active</span>",
         //"pending" => "<span id=\"label-pending\">",
+        // "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
+        // "pending2" => "<span id=\"label-pending\">Pending</span>",
         //"contingent" => "<span id=\"label-contingent\">",
         //"just sold" => "<span id=\"label-sold\"",
-        "contingent" => "<span class=\"jsx-3484526439 label label-red\">Contingent</span>",
-        "active1" => {
-            "<span class=\"jsx-3484526439 label label-dark-transparent\">For Sale - Active</span>"
-        }
-        "active2" => "<span data-label=\"property-meta-active\">Active</span>",
-        "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
-        "pending2" => "<span id=\"label-pending\">Pending</span>",
-        "just sold" => "<span id=\"label-sold\">",
-        "off market1" => "<span data-label=\"property-meta-status\">Off Market</span>",
-        "off market2" => {
-            "<span id=\"pdp-meta-hero-tag\" data-label=\"property-meta-status\">Off Market</span>"
-        }
+        // "contingent" => "<span class=\"jsx-3484526439 label label-red\">Contingent</span>",
+        // "just sold" => "<span id=\"label-sold\">",
+        // "off market1" => "<span data-label=\"property-meta-status\">Off Market</span>",
+        // "off market2" => {
+        //     "<span id=\"pdp-meta-hero-tag\" data-label=\"property-meta-status\">Off Market</span>"
+        "contingent" => "statusText ldpPage\">Contingent</span>",
+        "pending1" => "statusText ldpPage\">Pending</span>",
+        "pending2" => "Source Listing Status: Pending",
+        "active1" => "statusText ldpPage\">For Sale</span>",
+        "just sold" => "statusText ldpPage\">Just Sold</span>",
+        "off market1" => "property-meta-status\">Off Market</span>",
         _ => "UNKNOWN",
     }
 }
@@ -201,18 +212,18 @@ fn get_status(body: &str) -> &str {
         "contingent"
     } else if body.contains(get_status_tag("pending1")) {
         "pending"
-    } else if body.contains(get_status_tag("pending2")) {
-        "pending"
+    // } else if body.contains(get_status_tag("pending2")) {
+    //     "pending"
     } else if body.contains(get_status_tag("active1")) {
         "active"
-    } else if body.contains(get_status_tag("active2")) {
-        "active"
+    // } else if body.contains(get_status_tag("active2")) {
+    //     "active"
     } else if body.contains(get_status_tag("just sold")) {
         "just sold"
     } else if body.contains(get_status_tag("off market1")) {
         "off market"
-    } else if body.contains(get_status_tag("off market2")) {
-        "off market"
+    // } else if body.contains(get_status_tag("off market2")) {
+    //     "off market"
     } else {
         //most likely have gotten the bot-block page, although could be a page schema change
         "UNKNOWN"
@@ -220,7 +231,7 @@ fn get_status(body: &str) -> &str {
 }
 
 fn print_unknown_body(body: &str, body_num: u32) {
-    let out_file = "C:/rust_projects/realtor_query/target/debug/";
+    let out_file = UNKNOWN_BODY_LOC;
     let mut file_out = match OpenOptions::new()
         .append(true)
         .create(true)
@@ -240,35 +251,38 @@ fn get_price(body: &str, status: &str) -> String {
     if status != "active" && status != "pending" && status != "contingent" {
         return _price;
     }
-    let reggie = Regex::new(r#"price">\$[0-9]{2,3},[0-9]{3}"#).unwrap();
+    // let reggie = Regex::new(r#"price">\$[0-9]{2,3},[0-9]{3}"#).unwrap();
+    let reggie =
+        Regex::new(r#"class="Price__Component-rui__x3geed-0 gipzbd">\$[0-9]{2,3},[0-9]{3}"#)
+            .unwrap();
     if reggie.is_match(&body) {
         _price = match reggie.find(&body) {
-            Some(val) => val.as_str()[7..].to_string(),
+            Some(val) => val.as_str()[46..].to_string(),
             None => "".to_string(),
         };
     }
-    if _price == "" {
-        //need to match with all its line breaks and spaces
-        // <span itemprop="price" content="185000">
-        //                         $185,000
-        //                       </span>
-        let reggie =
-            Regex::new(r#"<span itemprop="price" content="[0-9]{6}">\s+\$[0-9]{3},[0-9]{3}"#)
-                .unwrap();
-        if reggie.is_match(&body) {
-            _price = match reggie.find(body) {
-                Some(val) => val.as_str()[40..].to_string(),
-                None => "".to_string(),
-            };
-            if !_price.is_empty() {
-                let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
-                _price = match reggie.find(&_price) {
-                    Some(val) => val.as_str().to_string(),
-                    None => "".to_string(),
-                };
-            }
-        }
-    }
+    // if _price == "" {
+    //     //need to match with all its line breaks and spaces
+    //     // <span itemprop="price" content="185000">
+    //     //                         $185,000
+    //     //                       </span>
+    //     let reggie =
+    //         Regex::new(r#"<span itemprop="price" content="[0-9]{6}">\s+\$[0-9]{3},[0-9]{3}"#)
+    //             .unwrap();
+    //     if reggie.is_match(&body) {
+    //         _price = match reggie.find(body) {
+    //             Some(val) => val.as_str()[40..].to_string(),
+    //             None => "".to_string(),
+    //         };
+    //         if !_price.is_empty() {
+    //             let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
+    //             _price = match reggie.find(&_price) {
+    //                 Some(val) => val.as_str().to_string(),
+    //                 None => "".to_string(),
+    //             };
+    //         }
+    //     }
+    // }
     _price
 }
 
