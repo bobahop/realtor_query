@@ -79,7 +79,7 @@ fn main() {
         }
         let body = body.unwrap();
         let status = get_status(&body).to_string();
-        //UNKNOWN
+
         if status == "UNKNOWN" {
             let reason = get_unknown_reason(&body);
             println!(
@@ -114,7 +114,7 @@ fn main() {
         //was getting bot-blocked after 10 queries, so wait longer after 9 queries
         match line_num % 9 == 0 {
             false => {
-                thread::sleep(Duration::from_secs(rand::thread_rng().gen_range(125, 185)));
+                thread::sleep(Duration::from_secs(rand::thread_rng().gen_range(125..185)));
             }
             true => {
                 println!(
@@ -179,22 +179,6 @@ fn get_house(req: &reqwest::blocking::Client, house_search_val: &str) -> String 
 
 fn get_status_tag(status: &str) -> &str {
     match status {
-        //old schema
-        //"active" => "\"listingStatus\":\"active\"",
-        // "active1" => {
-        //     "<span class=\"jsx-3484526439 label label-dark-transparent\">For Sale - Active</span>"
-        // }
-        // "active2" => "<span data-label=\"property-meta-active\">Active</span>",
-        //"pending" => "<span id=\"label-pending\">",
-        // "pending1" => "<span class=\"jsx-3484526439 label label-red\">Pending</span>",
-        // "pending2" => "<span id=\"label-pending\">Pending</span>",
-        //"contingent" => "<span id=\"label-contingent\">",
-        //"just sold" => "<span id=\"label-sold\"",
-        // "contingent" => "<span class=\"jsx-3484526439 label label-red\">Contingent</span>",
-        // "just sold" => "<span id=\"label-sold\">",
-        // "off market1" => "<span data-label=\"property-meta-status\">Off Market</span>",
-        // "off market2" => {
-        //     "<span id=\"pdp-meta-hero-tag\" data-label=\"property-meta-status\">Off Market</span>"
         "contingent" => "statusText ldpPage\">Contingent</span>",
         "pending1" => "statusText ldpPage\">Pending</span>",
         "pending2" => "Source Listing Status: Pending",
@@ -212,18 +196,12 @@ fn get_status(body: &str) -> &str {
         "contingent"
     } else if body.contains(get_status_tag("pending1")) {
         "pending"
-    // } else if body.contains(get_status_tag("pending2")) {
-    //     "pending"
     } else if body.contains(get_status_tag("active1")) {
         "active"
-    // } else if body.contains(get_status_tag("active2")) {
-    //     "active"
     } else if body.contains(get_status_tag("just sold")) {
         "just sold"
     } else if body.contains(get_status_tag("off market1")) {
         "off market"
-    // } else if body.contains(get_status_tag("off market2")) {
-    //     "off market"
     } else {
         //most likely have gotten the bot-block page, although could be a page schema change
         "UNKNOWN"
@@ -251,7 +229,6 @@ fn get_price(body: &str, status: &str) -> String {
     if status != "active" && status != "pending" && status != "contingent" {
         return _price;
     }
-    // let reggie = Regex::new(r#"price">\$[0-9]{2,3},[0-9]{3}"#).unwrap();
     let reggie =
         Regex::new(r#"class="Price__Component-rui__x3geed-0 gipzbd">\$[0-9]{2,3},[0-9]{3}"#)
             .unwrap();
@@ -269,20 +246,6 @@ fn get_price(body: &str, status: &str) -> String {
     //     let reggie =
     //         Regex::new(r#"<span itemprop="price" content="[0-9]{6}">\s+\$[0-9]{3},[0-9]{3}"#)
     //             .unwrap();
-    //     if reggie.is_match(&body) {
-    //         _price = match reggie.find(body) {
-    //             Some(val) => val.as_str()[40..].to_string(),
-    //             None => "".to_string(),
-    //         };
-    //         if !_price.is_empty() {
-    //             let reggie = Regex::new(r#"\$[0-9]{3},[0-9]{3}"#).unwrap();
-    //             _price = match reggie.find(&_price) {
-    //                 Some(val) => val.as_str().to_string(),
-    //                 None => "".to_string(),
-    //             };
-    //         }
-    //     }
-    // }
     _price
 }
 
