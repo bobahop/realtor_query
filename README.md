@@ -6,4 +6,4 @@ It reads from an input file in json format. The data looks like this:
 
 {"name":"1234-A-St_City_ST_00000_M00000-00000","status":"active","price":"$000,000","query":"M0000000000"}
 
-"query" is currently unused. The output file for one day can be renamed and become the input file for the next day.
+The output file for one day can be renamed and become the input file for the next day.
