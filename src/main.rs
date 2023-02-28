@@ -183,7 +183,7 @@ fn get_status_tag(status: &str) -> &str {
         "pending1" => "statusText ldpPage\">Pending</span>",
         "pending2" => "Source Listing Status: Pending",
         "active1" => "statusText ldpPage\">For Sale</span>",
-        "just sold" => "statusText ldpPage\">Just Sold</span>",
+        "just sold" => "property-meta-status\">Just Sold</span>",
         "off market1" => "property-meta-status\">Off Market</span>",
         _ => "UNKNOWN",
     }
